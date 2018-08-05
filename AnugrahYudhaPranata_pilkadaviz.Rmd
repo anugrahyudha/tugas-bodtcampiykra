@@ -1,0 +1,363 @@
+---
+title: "Tugas Data Visualization with R"
+output: html_notebook
+author: Anugrah Yudha Pranata
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+#1 Memanggil Library dan Menge-load Data
+
+Pertama-tama yang perlu dilakukan adalah memanggil Library dan Menge-load Data yang akan digunakan pada visualisasi data kali ini. Dilakukan pemanggilana terhadap 4 dataset yang terdiri dari dataset:
+  1. Hasil Pilkada Serentak Seluruh Indonesia berdasarkan Calon Kepala Daerah-Wakil Kepala Daerah pada Putaran 1
+  2. Hasil Pilkada Serentak Seluruh Indonesia berdasarkan Calon Kepala Daerah-Wakil Kepala Daerah pada Putaran 2
+  3. Hasil Pilkada Serentak Seluruh Indonesia berdasarkan Wilayah pada Putaran 1
+  4. Hasil Pilkada Serentak Seluruh Indonesia berdasarkan Wilayah pada Putaran 2
+  
+  
+```{r}
+library(dplyr)
+library(ggplot2)
+library(RColorBrewer)
+library(scales)
+
+PC1 <- read.delim("Tugas/putaran1_percalon.dat", header=TRUE, sep="|", na.strings="NA")
+PC2 <- read.delim("Tugas/putaran2_percalon.dat", header=TRUE, sep="|", na.strings="NA")
+PW1 <- read.delim("Tugas/putaran1_perwilayah.dat", header=TRUE, sep="|", na.strings="NA")
+PW2 <- read.delim("Tugas/putaran2_perwilayah.dat", header=TRUE, sep="|", na.strings="NA")
+```
+
+#2 Mengeksplorasi Data
+
+Pada tahapan ini, dilakukan eksplorasi data terhadap dataset 1.
+Diketahui jumlah dimensi dari data tersebut (jumlah baris dan jumlah kolom), serta struktur pada dataset tersebut.
+
+```{r}
+dim(PC1)
+str(PC1)
+```
+
+Kemudian, diintip sedikit isi dari dataset 1 tersebut.
+
+```{r}
+head(PC1, 10)
+```
+
+Lalu, dilihat bagaimana rangkuman pada dataset tersebut.
+
+```{r}
+summary(PC1)
+```
+
+Hal yang sama dilakukan juga pada dataset ke-2.
+
+```{r}
+dim(PC2)
+str(PC2)
+```
+
+```{r}
+summary(PC2)
+```
+
+Pada dataset ke-3:
+
+```{r}
+dim(PW1)
+str(PW1)
+```
+
+Hasil intipan terhadap dataset ke-3:
+
+```{r}
+head(PW1, 10)
+```
+
+Rangkuman dari dataset ke-3:
+
+```{r}
+summary(PW1)
+```
+
+Dan, terakhir pada dataset ke-4:
+
+```{r}
+dim(PW2)
+str(PW2)
+```
+
+```{r}
+summary(PW2)
+```
+
+Berdasarkan eksplorasi di atas, ditentukan beberapa perubahan tipe data untuk masing-masing variabel yang dianggap penting pada keseluruhan dataset, yakni perubahan tipe data dari yang bernilai numerik, meskipun sebenarnya berskala kategorikal.
+
+```{r}
+PC1$idWilayah <- as.factor(PC1$idWilayah)
+PC1$nomorUrut <- as.factor(PC1$nomorUrut)
+
+PC2$idWilayah <- as.factor(PC2$idWilayah)
+PC2$nomorUrut <- as.factor(PC2$nomorUrut)
+
+PW1$idWilayah <- as.factor(PW1$idWilayah)
+
+PW2$idWilayah <- as.factor(PW2$idWilayah)
+```
+
+
+Kemudian, dilakukan transformasi data.
+
+#3 Transformasi Data : Penambahan Variabel "Tingkatan Daerah" dan "Pulau dan Kepulauan"
+
+Transformasi data yang dilakukan pertama kali adalah penambahan variabel bernama "Kategori" yang merupakan Keterangan terhadap Tingkatan Daerah mana Pilkada tersebut berlangsng dan variabel bernama "namaPulauKepulauan" yang merupakan Keterangan terhadap Pulau & Kepulauan di mana Pilkada tersebut berlangsung.
+
+Pertama-tama, transformasi tersebut dilakukan pada dataset ke-1.
+
+```{r}
+for(i in 1:nrow(PC1)){
+     if(is.na(PC1$namaKabupatenKota[i])==TRUE){
+         PC1$Kategori[i]="Provinsi"
+     } else if(grepl("KOTA", PC1$namaKabupatenKota[i])){
+         PC1$Kategori[i]="Kota"
+         } else {PC1$Kategori[i]="Kabupaten"}
+}
+
+
+for(i in 1:nrow(PC1)){
+  if(PC1$namaPropinsi[i] %in% c("ACEH", "SUMATERA UTARA", "SUMATERA BARAT", "SUMATERA SELATAN", "RIAU", "KEPULAUAN RIAU", "KEPULAUAN BANGKA BELITUNG", "LAMPUNG", "JAMBI", "BENGKULU")){
+    PC1$namaPulauKepulauan[i]="SUMATERA"
+  } else if(PC1$namaPropinsi[i] %in% c("DKI JAKARTA", "JAWA BARAT", "JAWA TENGAH", "JAWA TIMUR", "DAERAH ISTIMEWA YOGYAKARTA", "BANTEN")){
+    PC1$namaPulauKepulauan[i]="JAWA"
+  } else if(PC1$namaPropinsi[i] %in% c("KALIMANTAN BARAT", "KALIMANTAN TENGAH", "KALIMANTAN TIMUR", "KALIMANTAN SELATAN", "KALIMANTAN UTARA")){
+    PC1$namaPulauKepulauan[i]="KALIMANTAN"
+  } else if(PC1$namaPropinsi[i] %in% c("NUSA TENGGARA BARAT", "NUSA TENGGARA TIMUR", "BALI")){
+    PC1$namaPulauKepulauan[i]="BALI & NUSA TENGGARA"
+  } else if(PC1$namaPropinsi[i] %in% c("SULAWESI BARAT", "SULAWESI TENGAH", "SULAWESI TENGGARA", "SULAWESI SELATAN", "SULAWESI UTARA", "GORONTALO")){
+    PC1$namaPulauKepulauan[i]="SULAWESI"
+  } else {PC1$namaPulauKepulauan[i]="MALUKU & PAPUA"}
+}
+
+
+PC1$Kategori <- as.factor(PC1$Kategori)
+PC1$namaPulauKepulauan <- as.factor(PC1$namaPulauKepulauan)
+
+summary(PC1)
+```
+
+Hal yang sama juga dilakukan pada dataset ke-3.
+
+```{r}
+for(i in 1:nrow(PW1)){
+  if(is.na(PW1$namaKabupatenKota[i])==TRUE){
+    PW1$Kategori[i]="Provinsi"
+  } else if(grepl("KOTA", PW1$namaKabupatenKota[i])){
+    PW1$Kategori[i]="Kota"
+  } else {PW1$Kategori[i]="Kabupaten"}
+}
+
+
+for(i in 1:nrow(PW1)){
+   if(PW1$namaPropinsi[i] %in% c("ACEH", "SUMATERA UTARA", "SUMATERA BARAT", "SUMATERA SELATAN", "RIAU", "KEPULAUAN RIAU", "KEPULAUAN BANGKA BELITUNG", "LAMPUNG", "JAMBI", "BENGKULU")){
+     PW1$namaPulauKepulauan[i]="SUMATERA"
+   } else if(PW1$namaPropinsi[i] %in% c("DKI JAKARTA", "JAWA BARAT", "JAWA TENGAH", "JAWA TIMUR", "DAERAH ISTIMEWA YOGYAKARTA", "BANTEN")){
+       PW1$namaPulauKepulauan[i]="JAWA"
+   } else if(PW1$namaPropinsi[i] %in% c("KALIMANTAN BARAT", "KALIMANTAN TENGAH", "KALIMANTAN TIMUR", "KALIMANTAN SELATAN", "KALIMANTAN UTARA")){
+       PW1$namaPulauKepulauan[i]="KALIMANTAN"
+   } else if(PW1$namaPropinsi[i] %in% c("NUSA TENGGARA BARAT", "NUSA TENGGARA TIMUR", "BALI")){
+       PW1$namaPulauKepulauan[i]="BALI & NUSA TENGGARA"
+   } else if(PW1$namaPropinsi[i] %in% c("SULAWESI BARAT", "SULAWESI TENGAH", "SULAWESI TENGGARA", "SULAWESI SELATAN", "SULAWESI UTARA", "GORONTALO")){
+       PW1$namaPulauKepulauan[i]="SULAWESI"
+   } else {PW1$namaPulauKepulauan[i]="MALUKU & PAPUA"}
+}
+
+
+PW1$Kategori <- as.factor(PW1$Kategori)
+PW1$namaPulauKepulauan <- as.factor(PW1$namaPulauKepulauan)
+
+summary(PW1)
+```
+
+Setelah dilakukan transformasi data terhadap dataset ke-1 dan ke-3, akan dilakukan visualisasi data.
+
+#4 Visualisasi Data
+
+Visualisasi data yang dilakukan pertama kali adalah:
+
+  1. Jumlah Pilkada yang terjadi pada masing-masing Provinsi.
+  2. Jumlah Pilkada yang terjadi berdasarkan Tingkatan Daerah
+  3. Jumlah Pilkada yang terjadai berdasarkan wilayah pulau & kepulauan
+
+
+```{r}
+ggplot(data=PW1, aes(x=namaPropinsi)) + geom_bar(aes(fill=namaPropinsi)) + coord_flip() + guides(fill=FALSE) + labs(title="Jumlah Pilkada di setiap Provinsi", x="Provinsi", y="Jumlah") + geom_text(aes(label = ..count..), stat = "count", hjust = -0.5)
+
+ggplot(data=PW1, aes(x=Kategori)) + geom_bar(aes(fill=Kategori)) + scale_fill_brewer(palette="Blues", name="Legenda") + labs(title="Jumlah Pilkada berdasarkan Tingkatan Daerah", x="Tingkatan Daerah", y="Jumlah") + geom_text(aes(label = ..count..), stat = "count", vjust = -0.25)
+
+ggplot(data=PW1, aes(x=namaPulauKepulauan)) + geom_bar(aes(fill=namaPulauKepulauan)) + scale_fill_brewer(palette="Blues", name="Legenda Wilayah") + labs(title="Jumlah Pilkada berdasarkan Pulau dan Kepulauan", x="Pulau dan Kepulauan", y="Jumlah") + geom_text(aes(label = ..count..), stat = "count", vjust = 1.25) + theme(axis.text.x = element_text(angle=60, hjust=1))
+```
+
+
+
+Rangkuman dari visualisasi di atas:
+  1. Jumlah Pilkada yang terjadi pada masing-masing Provinsi.
+  Didapatkan total sejumlah 30 provinsi yang mengadakan pilkada secara serentak, baik pilkada setingkat Kabupaten, Kota, maupun Provinsi tersebut. Total pilkada yang tercatat adalah sejumlah 101 (sesuai dengan jumlah baris pada dataset ke-3).
+  2. Jumlah Pilkada yang terjadi berdasarkan Tingkatan Daerah
+  Hal ini dapat dilihat pada grafik bahwa terdapat sejumlah 75 kabupaten yang mengikuti pilkada secara serentak pada tahun 2017, diikuti dengan 19 kota, dan terakhir 7 provinsi.
+  3. Jumlah Pilkada yang terjadai berdasarkan wilayah pulau & kepulauan
+  Dari grafik tersebut dapat dilihat bahwa sangat banyak sekali pilkada yang terjadi di pulau Sumatera, diikuti dengan Kepulauan Maluku dan Papua, lalu Pulau Jawa dan Pulau Sulawesi (yang bernilai sama), diikuti pulau Kalimantan, dan terakhir kepulauan Bali dan Nusa Tenggara.
+
+
+Kemudian, dilakukan visualisasi berikut:
+  1. Jumlah Suara pada Pilkada Tingkat Provinsi
+  2. Jumlah Suara pada Pilkada Tingkat Kabupaten (per Provinsi)
+  3. Jumlah Suara pada Pilkada Tingkat Kota (per Provinsi)
+  
+
+```{r}
+ggplot(data=PW1[PW1$Kategori=="Provinsi",], aes(x=namaPropinsi, y=jumlahSuara)) + geom_bar(stat="identity", aes(fill=namaPropinsi)) + labs(title="Jumlah Suara pada Pilkada setingkat Provinsi", x="Nama Provinsi", y="Jumlah Suara") + theme(axis.text.x = element_text(angle=60, hjust=1), legend.position="none") + scale_y_continuous(labels=comma) + scale_fill_brewer(palette="Dark2")
+
+ggplot(data=PW1[PW1$Kategori=="Kabupaten",], aes(x=namaPropinsi, y=jumlahSuara)) + geom_bar(stat="identity", aes(fill=namaWilayah)) + coord_flip() + labs(title="Jumlah Suara pada Pilkada Tk. Kabupaten (per Provinsi)", x="Nama Provinsi", y="Jumlah Suara") + theme(legend.position="none") + scale_y_continuous(labels=comma)
+
+ggplot(data=PW1[PW1$Kategori=="Kota",], aes(x=namaPropinsi, y=jumlahSuara)) + geom_bar(stat="identity", aes(fill=namaWilayah)) + coord_flip() + labs(title="Jumlah Suara pada Pilkada Tk. Kota (per Provinsi)", x="Nama Provinsi", y="Jumlah Suara") + theme(legend.position="none") + scale_y_continuous(labels=comma)
+```
+
+
+Kemudian, dilakukan pemetaan secara visual pada:
+
+  1. Jumlah Suara terhadap Jumlah TPS pada masing-masing Pilkada setingkat Provinsi
+  2. Jumlah Suara terhadap Jumlah TPS pada masing-masing Pilkada setingkat Kabupaten (berdasarkan Pulau dan Kepulauan)
+  3. Jumlah Suara terhadap Jumlah TPS pada masing-masing Pilkada setingkat Kota (berdasarkan Pulau dan Kepulauan)
+
+```{r}
+ggplot(data=PW1[PW1$Kategori=="Provinsi",], aes(x=jumlahTps, y=jumlahSuara)) + geom_jitter(aes(colour=namaPropinsi)) + labs(title="Pemetaan Jumlah TPS terhadap Jumlah Suara pada Pilkada Tk. Provinsi", x="Jumlah TPS", y="Jumlah Suara") + scale_color_brewer(name= "Keterangan Provinsi", palette="Dark2") + scale_y_continuous(labels=comma)
+
+ggplot(data=PW1[PW1$Kategori=="Kabupaten",], aes(x=jumlahTps, y=jumlahSuara)) + geom_jitter(aes(colour=namaPulauKepulauan)) + labs(title="Pemetaan Jumlah TPS terhadap Jumlah Suara pada Pilkada Tk. Kabupaten", x="Jumlah TPS", y="Jumlah Suara") + scale_color_brewer(name= "Keterangan Pulau & Kepulauan", palette="Dark2") + scale_y_continuous(labels=comma)
+
+ggplot(data=PW1[PW1$Kategori=="Kota",], aes(x=jumlahTps, y=jumlahSuara)) + geom_jitter(aes(colour=namaPulauKepulauan)) + labs(title="Pemetaan Jumlah TPS terhadap Jumlah Suara pada Pilkada Tk. Kota", x="Jumlah TPS", y="Jumlah Suara") + scale_color_brewer(name= "Keterangan Pulau & Kepulauan", palette="Dark2") + scale_y_continuous(labels=comma)
+```
+
+
+#5 Transformasi Data : Pemetaan Paslon untuk mencari Paslon Tunggal atau Majemuk
+
+Pertama-tama dilakukan transformasi terhadap data terlebih dahulu
+
+
+```{r}
+Paslon2017 <- PC1 %>% 
+  group_by(idWilayah, namaPemilihan, namaWilayah, namaPropinsi, namaKabupatenKota, Kategori, namaPulauKepulauan) %>% 
+  summarise(jumlahPaslon=n(), totalSuara=sum(jumlahSuara))
+
+Paslon2017 <- as.data.frame(Paslon2017)
+
+Paslon2017$jumlahPaslon <- as.factor(Paslon2017$jumlahPaslon)
+str(Paslon2017)
+```
+
+
+```{r}
+summary(Paslon2017)
+```
+
+
+Transformasi tersebut dilakukan untuk mencari tahu berapa banyak jumlah pilkada yang dilakukan jika dilihat dari jumlah pasangan calon yang mengikuti ajang tersebut.
+
+
+```{r}
+ggplot(data=Paslon2017, aes(x=jumlahPaslon)) + geom_bar(aes(fill=jumlahPaslon)) + labs(title="Pemetaan Pilkada Berdasarkan Jumlah Pasangan Calon yang Mengikuti", x="Jumlah Pasangan Calon yang Mengikuti", y="Jumlah Pilkada") + theme(legend.position="none") + geom_text(aes(label=..count..), stat="Count", vjust=-0.25)
+```
+
+
+#6 Transformasi Data : Pemetaan Kemenangan Paslon
+
+Transformasi ketiga yang dilakukan:
+
+```{r}
+PC1a <- PC1
+PC1a$hasilPaslon <- NA 
+for (i in 1:nrow(PC1a)){
+     for (j in 1:nrow(Paslon2017)){
+         if (PC1a$idWilayah[i]==Paslon2017$idWilayah[j]){
+             PC1a$proporsi[i]=PC1a$jumlahSuara[i]/Paslon2017$totalSuara[j]
+             PC1a$persentase[i]=paste0(round(PC1a$proporsi[i]*100,3), "%")
+             if (PC1a$proporsi[i]>0.5) {
+                   PC1a$hasilPaslon[i]="Suara didapat 50% < .."
+               } else if ((PC1a$proporsi[i]>0.33) && (PC1a$proporsi[i]<=0.5)) {
+                   PC1a$hasilPaslon[i]="Suara didapat 33% < ... <= 50%"
+               } else if ((PC1a$proporsi[i]>0.25) && (PC1a$proporsi[i]<=0.33)) {
+                   PC1a$hasilPaslon[i]="Suara didapat 25% < ... <= 33%"
+               } else if ((PC1a$proporsi[i]>0.10) && (PC1a$proporsi[i]<=0.25)) {
+                   PC1a$hasilPaslon[i]="Suara didapat 10% < ... <= 25%"
+               } else {PC1a$hasilPaslon[i]="Suara didapat 10% >= ..."}
+         }
+      }
+}
+
+str(PC1a)
+```
+
+
+```{r}
+summary(PC1a)
+```
+
+
+```{r}
+Pemenang2017 <- PC1a %>% 
+  group_by(idWilayah, namaPemilihan, namaWilayah, namaPropinsi, namaKabupatenKota, Kategori, namaPulauKepulauan) %>% 
+  summarise(hasilpemenang=max(proporsi), jumlahPaslonTerdaftar=max(as.numeric(nomorUrut)), totalSuara=sum(jumlahSuara))
+
+Pemenang2017 <- as.data.frame(Pemenang2017)
+str(Pemenang2017)
+
+Pemenang2017$jumlahPaslonTerdaftar <- as.factor(Pemenang2017$jumlahPaslonTerdaftar)
+
+Pemenang2017$nomorUrutPemenang <- NA
+Pemenang2017$namaKdPemenang <- NA
+Pemenang2017$namaWKdPemenang <- NA
+Pemenang2017$hasil <- NA
+
+
+for (i in 1:nrow(Pemenang2017)){
+   for (j in 1:nrow(PC1a)){
+       if (PC1a$proporsi[j]==Pemenang2017$hasilpemenang[i]){
+           Pemenang2017$nomorUrutPemenang[i]=PC1a$nomorUrut[j]
+           Pemenang2017$namaKdPemenang[i]=as.character(PC1a$namaKd[j])
+           Pemenang2017$namaWKdPemenang[i]=as.character(PC1a$namaWkd[j])
+           Pemenang2017$hasil[i]=as.character(PC1a$hasilPaslon[j])
+       }
+   }
+}
+
+Pemenang2017$nomorUrutPemenang <- as.factor(Pemenang2017$nomorUrutPemenang)
+```
+
+
+```{r}
+summary(Pemenang2017)
+```
+
+
+Transformasi tersebut dilakukan untuk mencari tahu berapa nomor urut yang paling favorit.
+
+
+```{r}
+ggplot(data=Pemenang2017, aes(x=jumlahPaslonTerdaftar)) + geom_bar(aes(fill=jumlahPaslonTerdaftar)) + scale_x_discrete(limits=c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)) + labs(title="Pemetaan Pilkada Berdasarkan Nomor Urut Terbesar yang Ada", x="Nomor Urut Terbesar", y="Jumlah Pilkada") + theme(legend.position="none") + geom_text(aes(label=..count..), stat="count", vjust=-0.25)
+
+ggplot(data=Pemenang2017, aes(x=jumlahPaslonTerdaftar)) + geom_bar(aes(fill=hasil)) + scale_x_discrete(limits=c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)) + labs(title="Pemetaan Pilkada Berdasarkan Nomor Urut Terbesar yang Ada", x="Nomor Urut Terbesar yang Ada", y="Jumlah Pilkada") + theme(legend.position="bottom") + scale_fill_discrete(name="Hasil Suara yang Didapat")
+```
+
+
+
+```{r}
+ggplot(data=Pemenang2017, aes(x=nomorUrutPemenang)) + geom_bar(aes(fill=nomorUrutPemenang)) + scale_x_discrete(limits=c(1, 2, 3, 4, 5, 6)) + labs(title="Pemetaan Pilkada Berdasarkan Nomor Urut Pemenang pada Pilkada Tersebut", x="Nomor Urut Pemenang", y="Jumlah Pilkada") + theme(legend.position="none") + geom_text(aes(label=..count..), stat="count", vjust=-0.25) + scale_fill_discrete(name="Hasil Suara yang Didapat")
+
+ggplot(data=Pemenang2017, aes(x=nomorUrutPemenang)) + geom_bar(aes(fill=hasil)) + scale_x_discrete(limits=c(1, 2, 3, 4, 5, 6)) + labs(title="Pemetaan Pilkada Berdasarkan Nomor Urut Pemenang dan Hasil yang Didapat", x="Nomor Urut Pemenang", y="Jumlah Pilkada") + scale_fill_discrete(name="Hasil Suara yang Didapat")
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
